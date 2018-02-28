@@ -4,8 +4,16 @@
 build_dir=$1
 
 if [ ! -f "$build_dir/static.json" ]; then
+    echo "\n-----> Buildpack expects to find a static.json config file in the root of the source directory!"
     exit 1
 fi
 
-echo 'Static HTML'
+config_file="`ls $build_dir | grep config`"
+
+if [ -z $config_file ]; then
+  echo "\n-----> Hugo expects to find a config file in the root of the source directory! please include a config.toml, config.yaml or config.json file"
+  exit 1
+fi
+
+echo 'Hugo'
 exit 0

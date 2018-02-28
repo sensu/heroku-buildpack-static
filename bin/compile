@@ -8,6 +8,13 @@ cache_dir=$2
 env_dir=$3
 bp_dir=$(dirname $(dirname $0))
 
+default_hugo_version="0.26"
+
+indent() {
+  RE="s/^/       /"
+  sed $SED_FLAG "$RE"
+}
+
 fetch_nginx_tarball() {
     local version="1.9.7"
     local tarball_file="nginx-$version.tgz"
@@ -22,15 +29,66 @@ fetch_nginx_tarball() {
     fi
 }
 
-mkdir -p $build_dir/bin
-$(fetch_nginx_tarball) | tar xzC $build_dir/bin
-nginx_version=$($build_dir/bin/nginx-$STACK -V 2>&1 | head -1 | awk '{ print $NF }')
-cp -a $bp_dir/scripts/{boot,config} -t $build_dir/bin/
-echo "-----> Installed ${nginx_version} to /app/bin"
+install_nginx() {
+    mkdir -p $build_dir/bin
+    $(fetch_nginx_tarball) | tar xzC $build_dir/bin
+    nginx_version=$($build_dir/bin/nginx-$STACK -V 2>&1 | head -1 | awk '{ print $NF }')
+    cp -a $bp_dir/scripts/{boot,config} -t $build_dir/bin/
+    echo "-----> Installed ${nginx_version} to /app/bin"
 
-mkdir -p $build_dir/config
-cp $bp_dir/scripts/config/templates/mime.types $build_dir/config
+    mkdir -p $build_dir/config
+    cp $bp_dir/scripts/config/templates/mime.types $build_dir/config
 
-mkdir -p $build_dir/logs
+    mkdir -p $build_dir/logs
+}
+
+install_hugo() {
+    # attempt to extract the HUGO_VERSION parameter form the Heroku configuration vars, fall back to the default version if unavailable
+    if [ -d "$env_dir" -a -e "$env_dir/HUGO_VERSION" ]; then
+        export hugo_version=$(cat "$env_dir/HUGO_VERSION")
+    else
+        echo "\n-----> HUGO VERSION not defined, using $default_hugo_version."
+        export hugo_version=$default_hugo_version
+    fi
+
+    # Hugo URL ( download from GH builds )
+    local release_name=hugo_${hugo_version}_Linux-64bit
+    local file_name=${release_name}.tar.gz
+    local hugo_package=https://github.com/spf13/hugo/releases/download/v${hugo_version}/${file_name}
+
+    # Store the hugo package in the cache_dir ( persistent across builds )
+    mkdir -p $cache_dir
+    if ! [ -e $cache_dir/$file_name ]; then
+        echo "\n-----> Fetching Hugo ${hugo_version} binaries at ${hugo_package}"
+        curl $hugo_package -L -s -o $cache_dir/$file_name | indent
+    fi
+
+    # Extract the binary in the working directory
+    echo "\n-----> Extracting Hugo ${hugo_version} binaries to ${build_dir}"
+    mkdir -p $cache_dir/$release_name | indent
+    tar -zxvf $cache_dir/$file_name -C $cache_dir | indent
+    mv $cache_dir/hugo $build_dir/hugo | indent
+}
+
+install_hugo_theme() {
+    if [ -e $build_dir/.hugotheme ]; then
+        echo "\n-----> Getting the theme"
+        theme_url="`cat $build_dir/.hugotheme`"
+        rm -rf $build_dir/themes && mkdir $build_dir/themes && cd $build_dir/themes
+        git clone $theme_url
+    fi
+}
+
+build_site() {
+    echo "\n-----> Building the site"
+    cd $build_dir
+    mkdir -p static | indent
+    yarn | indent
+}
+
+install_nginx
+install_hugo
+install_hugo_theme
+build_site
 
 exit 0
