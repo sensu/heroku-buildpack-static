@@ -48,9 +48,11 @@ class NginxConfig
     json["routes"] ||= {}
     json["routes"] = NginxConfigUtil.parse_routes(json["routes"])
 
-    json["redirects"] ||= {}
-    json["redirects"].each do |loc, hash|
-      json["redirects"][loc].merge!("url" => NginxConfigUtil.interpolate(hash["url"], ENV))
+    %w(rewrites redirects).each do |rule|
+      json[rule] ||= {}
+      json[rule].each do |loc, hash|
+        json[rule][loc].merge!("url" => NginxConfigUtil.interpolate(hash["url"], ENV))
+      end
     end
 
     json["error_page"] ||= nil
