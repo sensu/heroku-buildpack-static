@@ -111,10 +111,17 @@ http {
     }
   <% end %>
 
-  # fallback rewrites pattern match
-  <% rewrites.each do |path, hash| %>
+  # fallback redirects pattern match
+  <% pattern_redirects.each do |path, hash| %>
     location <%= path %> {
       return <%= hash['status'] || 301 %> <%= hash['url'] %>;
+    }
+  <% end %>
+
+  # fallback rewrites pattern match
+  <% rewrites.each do |pattern, hash| %>
+    location ~ <%= pattern %> {
+      rewrite <%= pattern %> <%= hash['target'] %>;
     }
   <% end %>
 
