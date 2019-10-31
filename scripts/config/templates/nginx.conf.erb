@@ -120,7 +120,7 @@ http {
 
   # fallback rewrites pattern match
   <% rewrites.each do |pattern, hash| %>
-    location <%= pattern %> {
+    location ~ <%= pattern %> {
       rewrite <%= pattern %> <%= hash['target'] %>;
     }
   <% end %>
