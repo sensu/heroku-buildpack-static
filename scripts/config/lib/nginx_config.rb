@@ -49,6 +49,7 @@ class NginxConfig
     json["routes"] = NginxConfigUtil.parse_routes(json["routes"])
 
     json["pattern_redirects"] ||= {}
+    json["rewrites"] ||= {}
 
     %w(redirects).each do |rule|
       json[rule] ||= {}
